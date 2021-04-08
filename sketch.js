@@ -1,74 +1,58 @@
 /***********************************************************************************
-  MazeMapper
+  MoodyMaze
   by Scott Kildall
 
-  Uses the p5.2DAdventure.js class
-
-  Loads a series of PNG files from the assets folder and creates a collision map
-    file for each one
-
-  Show numbered rects as you
-
-  Interactions:
-  * first mouse release: defines start corner for rect (change to state drawing)
-  * second mouse release: defines end corner for rect
-  * ESC will stop the rect
-  * 'i' to invert background
-  * left/right arrow will cycle through the rects
-  * 'x' will delete a rect
-  * 's' to output CSV file
-  * 'l' to read CSV file
-  * ' ' to toggle display, including instructions
-
- ------------------------------------------------------------------------------------
+  Uses the p5.2DAdventure.js class 
+  
+------------------------------------------------------------------------------------
 	To use:
 	Add this line to the index.html
 
   <script src="p5.2DAdventure.js"></script>
 ***********************************************************************************/
 
+// adventure manager global  
+var adventureManager;
 
-// state machine
-var gState;
-const kStateWait = 1;
-const kStateFirstMouse = 2;
+// p5.play
+var playerSprite;
+var playerAnimation;
 
-// drawing vars
-var gBlackBackground = true;
-var gDrawInstructions = true;
-const kTextLineHeight = 16;
-const kDrawYInstructions = 100;
-const kDrawXInstructions = 20;
+// Clickables: the manager class
+var clickablesManager;    // the manager class
+var clickables;           // an array of clickable objects
 
-// collision rects
-var collisionSX = [];
-var collisionSY = [];
-var collisionEX = [];
-var collisionEY = [];
+// indexes into the clickable array (constants)
+const playGameIndex = 0;
+const restartGameIndex = 1;
+const answer1Index = 2;
+const answer2Index = 3;
+const answer3Index = 4;
+const answer4Index = 5;
+const answer5Index = 6;
+const answer6Index = 7;
 
-var startMouseX;
-var startMouseY;
 
-// current png filename
-var pngFilename;
+// some globals we use throughout...
+var screamSound = null;
+var numLives = 5;
+var atariFont = null;
+var talkedToWeirdNPC = false;
 
-// current classname
-var className;
 
-// you can toggle this display
-var showPlayerSprite = false;
-var playerSprite = null;
-
-// start with invalid
-var selectedRectIndex = -1; 
-
-function preload(){
+// Allocate Adventure Manager with states table and interaction tables
+function preload() {
   clickablesManager = new ClickableManager('data/clickableLayout.csv');
   adventureManager = new AdventureManager('data/adventureStates.csv', 'data/interactionTable.csv', 'data/clickableLayout.csv');
 
+  // keep this sound in memory as it is low RAM usage
+  screamSound = loadSound('sounds/Wilhelm_Scream.wav');
+
+  // font for drawing
+  atariFont = loadFont('fonts/AtariClassic-Chunky.ttf');
 }
 
-// Setup code goes here
+// Setup the adventure manager
 function setup() {
   createCanvas(1280, 720);
 
@@ -79,369 +63,75 @@ function setup() {
   playerSprite = createSprite(width/2, height/2, 80, 80);
 
   // every animation needs a descriptor, since we aren't switching animations, this string value doesn't matter
-  playerSprite.addAnimation('regular', loadAnimation('assets/avatars/bubbly0001.png', 'assets/avatars/bubbly0004.png'));
+  playerSprite.addAnimation('regular', loadAnimation('assets/avatars/blueblob-01.png', 'assets/avatars/blueblob-05.png'));
+  
+
+  // use this to track movement from toom to room in adventureManager.draw()
+  adventureManager.setPlayerSprite(playerSprite);
 
   // this is optional but will manage turning visibility of buttons on/off
   // based on the state name in the clickableLayout
   adventureManager.setClickableManager(clickablesManager);
 
-  
-  // use this to track movement from toom to room in adventureManager.draw()
-  adventureManager.setPlayerSprite(playerSprite);
-
     // This will load the images, go through state and interation tables, etc
   adventureManager.setup();
 
-  pngFilename = adventureManager.getPNGFilename();
-  className = adventureManager.getClassName();
+  // call OUR function to setup additional information about the p5.clickables
+  // that are not in the array 
+  setupClickables(); 
 
-  gState = kStateWait;
+  //adventureManager.changeState("Aha");
 }
 
+// Adventure manager handles it all!
 function draw() {
-  if( gBlackBackground ) {
-     background(0);
-  } 
-  else {
-     background(255);
-  }
-
-  if( gState === kStateFirstMouse ) {
-    tint(240);
-  }
-  else {
-    noTint();
-  }
-
-  if( showPlayerSprite ) {
-    fill(255,0,0);
-    moveSprite();
-  }
+  // draws background rooms and handles movement from one to another
   adventureManager.draw();
 
-  push();
+  // draw the p5.clickables, in front of the mazes but behind the sprites 
+  clickablesManager.draw();
 
-  
-  rectMode(CORNER);
-  
+  // No avatar for Splash screen or Instructions screen
+  if( adventureManager.getStateName() !== "Splash" && 
+      adventureManager.getStateName() !== "Instructions" ) {
+      
+    // responds to keydowns
+    moveSprite();
 
-  // draws the rect that we currently making
-  if( gState === kStateFirstMouse ) {
-    noFill();
-    stroke("#FFFFFF");
-    strokeWeight(1);
-    
-    rectMode(CORNERS);
-    rect(startMouseX, startMouseY, mouseX, mouseY); 
-  }
-  
-  drawCollisionRects();
+    // draw number of lives
+    fill(255);
+    textFont(atariFont);
+    textSize(20)
+    textAlign(LEFT);
+    text( "Lives: " + numLives, width-350, 50);
 
-  if( gState === kStateWait && gDrawInstructions ) {
-    drawInstructions();
-  }
-
-  pop();
-
-
-  // this is a function of p5.js, not of this sketch
-  if( showPlayerSprite ) {
+    // this is a function of p5.js, not of this sketch
     drawSprite(playerSprite);
-  }
-
-  //clickablesManager.draw();
+  } 
 }
 
-
+// pass to adventure manager, this do the draw / undraw events
 function keyPressed() {
-  // toggle instructions
-  if( key === ' ') {
-      gDrawInstructions = !gDrawInstructions;
+  // toggle fullscreen mode
+  if( key === 'f') {
+    fs = fullscreen();
+    fullscreen(!fs);
+    return;
   }
 
-  // escape will stop drawing a rect
-  if( keyCode === ESCAPE &&  gState === kStateFirstMouse ) {
-    gState = kStateWait;
-  }
+  // dispatch key events for adventure manager to move from state to 
+  // state or do special actions - this can be disabled for NPC conversations
+  // or text entry   
 
-  // Next key, check for overflow
-  if( key === 'n' ) {
-    let newStateNum = adventureManager.getCurrentStateNum() + 1;
-    if( newStateNum >= adventureManager.getNumStates() ) {
-      newStateNum = 0;
-    }
-    updateStateNum(newStateNum);
-  }
-
-  // Prev key, check for underflow
-  else if( key === 'p') {
-    let newStateNum = adventureManager.getCurrentStateNum() - 1;
-    if( newStateNum < 0) {
-      newStateNum = adventureManager.getNumStates()-1;
-    }
-    updateStateNum(newStateNum);
-  }
-
-  else if( key === 'i') {
-    gBlackBackground = !gBlackBackground;
-  }
-
-  // saves to your folder
-  else if( key === 's' ) {
-    saveCollisionRects();
-  }
-
-  else if( key === 'x') {
-    deleteSelectedRect();
-  }
-
-  // saves to your folder
-  else if( key === 'a' ) {
-    showPlayerSprite = !showPlayerSprite;
-  }
-
-// go forward one index, check for overflow
-  if( key === '.' ) {
-    // don't change anything if we have no length
-    if( collisionSX.length === 0 ) {
-      return;
-    }
-
-    // make zero if invalid
-    if( selectedRectIndex === -1 || selectedRectIndex >= collisionSX.length ) {
-      selectedRectIndex = 0;
-    }
-    else {
-      selectedRectIndex++;
-      if( selectedRectIndex >= collisionSX.length ) {
-        selectedRectIndex = 0;
-      }
-    }
-  }
-
-// go back one index, check for overflow
-  if( key === ',' ) {
-    if( collisionSX.length === 0 ) {
-      return;
-    }
-
-    // make zero if invalid
-    if( selectedRectIndex === -1 || selectedRectIndex >= collisionSX.length ) {
-      selectedRectIndex = 0;
-    }
-    else {
-      selectedRectIndex--;
-      if( selectedRectIndex < 0 ) {
-        selectedRectIndex = collisionSX.length - 1;
-      }
-    }
-  }
+  // dispatch to elsewhere
+  adventureManager.keyPressed(key); 
 }
 
 function mouseReleased() {
-  // XXX: do check for no states
-
-  if( gState === kStateWait ) {
-    startMouseX = mouseX;
-    startMouseY = mouseY;
-    gState = kStateFirstMouse;
-  }
-  else if( gState === kStateFirstMouse ) {
-    if( startMouseX === mouseX || startMouseY === mouseY ) {
-      // skip - no valid rect
-    }
-    else {
-      addCollisionRect(startMouseX, startMouseY, mouseX, mouseY );
-    }
-
-    gState = kStateWait;
-  }
+  adventureManager.mouseReleased();
 }
 
-
-function drawInstructions() {
-  textSize(kTextLineHeight);
-  textAlign(LEFT);
-
-  if( gBlackBackground ) {
-    fill(255);
-  }
-  else {
-    fill(0);
-  }
-
-  text( "SPACE to toggle instructions", kDrawXInstructions, kDrawYInstructions);
-  text( "Current file = " + pngFilename + "  |  ClassName = " + className, kDrawXInstructions, kDrawYInstructions+kTextLineHeight*1);
-  text( "[n] for next room | [p] for previous room", kDrawXInstructions, kDrawYInstructions+kTextLineHeight*2);
-  text( "Type [,] or [.] to select rect", kDrawXInstructions, kDrawYInstructions+kTextLineHeight*3);
-  text( "Type [x] to delete rect", kDrawXInstructions, kDrawYInstructions+kTextLineHeight*4);
-  text( "Type [s] to save collision rects", kDrawXInstructions, kDrawYInstructions+kTextLineHeight*5);
-  text( "Type [a] to draw player sprite", kDrawXInstructions, kDrawYInstructions+kTextLineHeight*6);
- }
-
-function drawCollisionRects() {
-  //go thru collisionRects array and draw each
-  for( let i = 0; i < collisionSX.length; i++ ) {
-    rectMode(CORNERS);
-    noFill();
-    stroke("#FFFFFF");
-    strokeWeight(1);
-    rect(collisionSX[i], collisionSY[i], collisionEX[i], collisionEY[i]);
-    drawRectNumber(i);
-  }
-}
-
-function drawRectNumber(rectIndex) {
-  // ugh, Javascript type things
-  var midX = parseInt(collisionSX[rectIndex]) + parseInt((collisionEX[rectIndex]-collisionSX[rectIndex])/2);
-  var midY = parseInt(collisionSY[rectIndex]) + parseInt((collisionEY[rectIndex]-collisionSY[rectIndex])/2);
-
-  push();
-  rectMode(CENTER);
-  fill(64);
-
-  if( rectIndex === selectedRectIndex ) {
-    fill(240,120,0);
-  }
-
-  noStroke();
-  rect(midX, midY, 20, 20);
-  
-  // no draw selected if invalid
-  fill(255);
-  
-  
-
-  textAlign(CENTER);
-  textSize(12);
-  text(rectIndex,midX,midY+3);
-
-  // rect(width/2,height/2, 12, 12);
-  pop();
-
-}
-
-// need to account for x1 < x2 or x2 > x1, same for y1 and y2
-function addCollisionRect(x1, y1, x2, y2) {
-  if( x1 === x2 || y1 === y2 ) {
-    print("bad collision rect");
-    return;
-  }
-
-  // order it so that SX < EX and SY < EY
-  let temp;
-  if( x1 > x2 ) {
-    temp = x1;
-    x1 = x2;
-    x2 = temp;
-  }
-
-  if( y1 > y2 ) {
-    temp = y1;
-    y1 = y2;
-    y2 = temp;
-  }
-
-
-  // expand to edges of screen
-  let pixelAllowance = 20;
-  if( x1 < pixelAllowance ) {
-    x1 = 0;
-  }
-  if( x2 > width-pixelAllowance ) {
-    x2 = width;
-  }
-  if( y1 < pixelAllowance ) {
-    y1 = 0;
-  }
-  if( y2 > height-pixelAllowance ) {
-    y2 = height;
-  }
-
-  // add to the array
-  nextOffset = collisionSX.length;
-
-  // now, we are saving by x,y and w,h
-  collisionSX[nextOffset] = x1;
-  collisionSY[nextOffset] = y1;
-  collisionEX[nextOffset] = x2;
-  collisionEY[nextOffset] = y2;
-  
-  updateRoom();
-}
-
-// update room with our collision rects
-function updateRoom() {
-  roomObj = adventureManager.states[adventureManager.getCurrentStateNum()];
-  roomObj.collisionSX = collisionSX;
-  roomObj.collisionSY = collisionSY;
-  roomObj.collisionEX = collisionEX;
-  roomObj.collisionEY = collisionEY;
-}
-
-// forces a save into downloads directory
-function saveCollisionRects() {
-  table = new p5.Table();
-
-  table.addColumn('sx');
-  table.addColumn('sy');
-  table.addColumn('ex');
-  table.addColumn('ey');
-
-  for( let i = 0; i < collisionSX.length; i++ ) {
-    let newRow = table.addRow();
-    newRow.setNum('sx', collisionSX[i]);
-    newRow.setNum('sy', collisionSY[i]);
-    newRow.setNum('ex', collisionEX[i]);
-    newRow.setNum('ey', collisionEY[i]);
-  }
-  
-  // converts .png or any file to .csv
-  let pos = pngFilename.lastIndexOf(".");
-  let csvFilename = pngFilename.substr(0, pos < 0 ? pngFilename.length : pos) + "_cl" + ".csv";
-
-  saveTable(table, csvFilename);
-}
-
-function deleteSelectedRect() {
-  if( selectedRectIndex === -1 || selectedRectIndex >= collisionSX.length ) {
-    return;
-  }
-
-  collisionSX.splice(selectedRectIndex,1);
-  collisionEX.splice(selectedRectIndex,1);
-  collisionSY.splice(selectedRectIndex,1);
-  collisionEY.splice(selectedRectIndex,1);
-
-  // if length is zero, this will become -1, which is what we want
-  if(  selectedRectIndex >= collisionSX.length ) {
-    selectedRectIndex = collisionSX.length-1;
-  }
-
-  updateRoom();
-}
-
-function updateStateNum(newStateNum) {
-  adventureManager.changeStateByNum(newStateNum);
-  pngFilename = adventureManager.getPNGFilename();
-  className = adventureManager.getClassName();
-  clearCollisionRects();
-
-  roomObj = adventureManager.states[adventureManager.getCurrentStateNum()];
-  collisionSX = roomObj.collisionSX;
-  collisionSY = roomObj.collisionSY;
-  collisionEX = roomObj.collisionEX;
-  collisionEY = roomObj.collisionEY;
-}
-
-// makes null arrays of the 4 points
-function clearCollisionRects() {
-  collisionSX = [];
-  collisionSY = [];
-  collisionEX = [];
-  collisionEX = [];
-}
-
+//-------------- YOUR SPRITE MOVEMENT CODE HERE  ---------------//
 function moveSprite() {
   if(keyIsDown(RIGHT_ARROW))
     playerSprite.velocity.x = 10;
@@ -457,3 +147,246 @@ function moveSprite() {
   else
     playerSprite.velocity.y = 0;
 }
+
+//-------------- CLICKABLE CODE  ---------------//
+
+function setupClickables() {
+  // All clickables to have same effects
+  for( let i = 0; i < clickables.length; i++ ) {
+    clickables[i].onHover = clickableButtonHover;
+    clickables[i].onOutside = clickableButtonOnOutside;
+    clickables[i].onPress = clickableButtonPressed;
+  }
+}
+
+// tint when mouse is over
+clickableButtonHover = function () {
+  this.color = "#AA33AA";
+  this.noTint = false;
+  this.tint = "#FF0000";
+}
+
+// color a light gray if off
+clickableButtonOnOutside = function () {
+  // backto our gray color
+  this.color = "#AAAAAA";
+}
+
+clickableButtonPressed = function() {
+  // these clickables are ones that change your state
+  // so they route to the adventure manager to do this
+   
+  if( !checkWeirdNPCButtons(this.id) ) {
+    // route to adventure manager unless you are on weird NPC screne
+    adventureManager.clickablePressed(this.name);
+  }
+  
+  // restart game with max lives
+  if( this.name === "Restart" ) {
+    numLives = 5;
+  }
+
+  
+}
+
+// this goes through and checks to see if we pressed one of the wierd NPC buttons, if so, we
+// see if it is the corrent one or not
+function checkWeirdNPCButtons(idNum) {
+  if( idNum >= 2 && idNum <= 7 ) {
+    if( idNum === 6) {
+      adventureManager.changeState("AhaOpened");
+    }
+    else {
+      die();
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+// gets called when player dies, screen and teleport back to start
+// OR if you are out of lives, just dead...
+function die() {
+  screamSound.play();
+  numLives--;
+  if( numLives > 0 )  {
+    adventureManager.changeState("Start");
+  }
+  else {
+    adventureManager.changeState("Dead");
+  }
+}
+
+function talkToWeirdy() {
+  if( talkedToWeirdNPC === false ) {
+    print( "turning them on");
+
+    // turn on visibility for buttons
+    for( let i = answer1Index; i <= answer6Index; i++ ) {
+      clickables[i].visible = true;
+    }
+
+    talkedToWeirdNPC = true;
+    print("talked to weidy");
+  }
+}
+  
+
+//-------------- SUBCLASSES / YOUR DRAW CODE CAN GO HERE ---------------//
+
+
+// Instructions screen has a backgrounnd image, loaded from the adventureStates table
+// It is sublcassed from PNGRoom, which means all the loading, unloading and drawing of that
+// class can be used. We call super() to call the super class's function as needed
+class InstructionsScreen extends PNGRoom {
+  // preload is where we define OUR variables
+  preload() {
+    // These are out variables in the InstructionsScreen class
+    this.textBoxWidth = (width/6)*4;
+    this.textBoxHeight = (height/6)*4; 
+
+    // hard-coded, but this could be loaded from a file if we wanted to be more elegant
+    this.instructionsText = "Find WEIRDY who has a logic problem for you to solve, but first, make it past the CORONAVIRUS room";
+  }
+
+  // call the PNGRoom superclass's draw function to draw the background image
+  // and draw our instructions on top of this
+  draw() {
+    // tint down background image so text is more readable
+    tint(128);
+      
+    // this calls PNGRoom.draw()
+    super.draw();
+      
+    // text draw settings
+    fill(255);
+    textAlign(CENTER);
+    textSize(30);
+
+    // Draw text in a box
+    text(this.instructionsText, width/6, height/6, this.textBoxWidth, this.textBoxHeight );
+  }
+}
+
+// In the FeedMeRoom, you have a number of NPCs. We'll eventually make them
+// moving, but for now, they are static. If you run into the NPC, you
+// "die" and get teleported back to Start
+class DeepThoughtsRoom extends PNGRoom {
+  // preload() gets called once upon startup
+  // We load ONE animation and create 20 NPCs
+  preload() {
+     // load the animation just one time
+    this.NPCAnimation = loadAnimation('assets/NPCs/coronaMine_01.png', 'assets/NPCs/coronaMine_04.png');
+    
+    // this is a type from p5play, so we can do operations on all sprites
+    // at once
+    this.NPCgroup = new Group;
+
+    // change this number for more or less
+    this.numNPCs = 30;
+
+    // is an array of sprites, note we keep this array because
+    // later I will add movement to all of them
+    this.NPCSprites = [];
+
+    // this will place them randomly in the room
+    for( let i = 0; i < this.numNPCs; i++ ) {
+      // random x and random y poisiton for each sprite
+      let randX  = random(100, width-100);
+      let randY = random(100, height-100);
+
+      // create the sprite
+      this.NPCSprites[i] = createSprite( randX, randY, 40, 40);
+    
+      // add the animation to it (important to load the animation just one time)
+      this.NPCSprites[i].addAnimation('regular', this.NPCAnimation );
+
+      // add to the group
+      this.NPCgroup.add(this.NPCSprites[i]);
+    }
+  }
+
+  
+  // pass draw function to superclass, then draw sprites, then check for overlap
+  draw() {
+    // PNG room draw
+    super.draw();
+
+    // draws all the sprites in the group
+    this.NPCgroup.draw();
+
+    // checks for overlap with ANY sprite in the group, if this happens
+    // our die() function gets called
+    playerSprite.overlap(this.NPCgroup, die);
+
+    for( let i = 0; i < this.NPCSprites.length; i++ ) {
+      this.NPCSprites[i].velocity.x = random(-1,1);
+      this.NPCSprites[i].velocity.y = random(-1,1);
+    }
+  }
+}
+
+class AhaRoom extends PNGRoom {
+  // preload() gets called once upon startup
+  // We load ONE animation and create 20 NPCs
+  // 
+  preload() {
+      // this is our image, we will load when we enter the room
+      this.talkBubble = null;
+      this.talkedToNPC = false;  // only draw when we run into it
+      talkedToWeirdNPC = false;
+
+      // NPC position
+      this.drawX = width/4;
+      this.drawY = height/2 + 100;
+
+      // load the animation just one time
+      this.weirdNPCSprite = createSprite( this.drawX, this.drawY, 100, 100);
+      this.weirdNPCSprite.addAnimation('regular',  loadAnimation('assets/NPCs/wierdy_01.png', 'assets/NPCs/wierdy_04.png'));
+   }
+
+   load() {
+      // pass to superclass
+      super.load();
+
+      this.talkBubble = loadImage('assets/talkBubble.png');
+      
+      // turn off buttons
+      for( let i = answer1Index; i <= answer6Index; i++ ) {
+       clickables[i].visible = false;
+      }
+    }
+
+    // clears up memory
+    unload() {
+      super.unload();
+
+      this.talkBubble = null;
+      talkedToWeirdNPC = false;
+      print("unloading AHA room");
+    }
+
+   // pass draw function to superclass, then draw sprites, then check for overlap
+  draw() {
+    // PNG room draw
+    super.draw();
+
+    // draws all the sprites in the group
+    //this.weirdNPCSprite.draw();
+    drawSprite(this.weirdNPCSprite)
+    // draws all the sprites in the group - 
+    //drawSprites(this.weirdNPCgroup);//.draw();
+
+    // checks for overlap with ANY sprite in the group, if this happens
+    // talk() function gets called
+    playerSprite.overlap(this.weirdNPCSprite, talkToWeirdy );
+
+     
+    if( this.talkBubble !== null && talkedToWeirdNPC === true ) {
+      image(this.talkBubble, this.drawX + 60, this.drawY - 350);
+    }
+  }
+}
+
