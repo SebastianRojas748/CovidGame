@@ -49,7 +49,7 @@ function preload() {
   screamSound = loadSound('sounds/Wilhelm_Scream.wav');
 
   // font for drawing
-  atariFont = loadFont('fonts/AtariClassic-Chunky.ttf');
+  PixelFont = loadFont('fonts/Pixellari.ttf');
 }
 
 // Setup the adventure manager
@@ -133,16 +133,16 @@ function mouseReleased() {
 
 //-------------- YOUR SPRITE MOVEMENT CODE HERE  ---------------//
 function moveSprite() {
-  if(keyIsDown(RIGHT_ARROW))
+  if(keyIsDown(w))
     playerSprite.velocity.x = 10;
-  else if(keyIsDown(LEFT_ARROW))
+  else if(keyIsDown(a))
     playerSprite.velocity.x = -10;
   else
     playerSprite.velocity.x = 0;
 
-  if(keyIsDown(DOWN_ARROW))
+  if(keyIsDown(s))
     playerSprite.velocity.y = 10;
-  else if(keyIsDown(UP_ARROW))
+  else if(keyIsDown(d))
     playerSprite.velocity.y = -10;
   else
     playerSprite.velocity.y = 0;
