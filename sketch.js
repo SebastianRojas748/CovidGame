@@ -63,7 +63,7 @@ function setup() {
   playerSprite = createSprite(width/2, height/2, 80, 80);
 
   // every animation needs a descriptor, since we aren't switching animations, this string value doesn't matter
-  playerSprite.addAnimation('regular', loadAnimation('assets/avatars/blueblob-01.png', 'assets/avatars/blueblob-05.png'));
+  playerSprite.addAnimation('regular', loadAnimation('assets/avatars/Vaccinator-01.png', 'assets/avatars/Vaccinator-05.png'));
   
 
   // use this to track movement from toom to room in adventureManager.draw()
@@ -133,16 +133,16 @@ function mouseReleased() {
 
 //-------------- YOUR SPRITE MOVEMENT CODE HERE  ---------------//
 function moveSprite() {
-  if(keyIsDown(w))
+  if(keyIsDown('w'))
     playerSprite.velocity.x = 10;
-  else if(keyIsDown(a))
+  else if(keyIsDown('a'))
     playerSprite.velocity.x = -10;
   else
     playerSprite.velocity.x = 0;
 
-  if(keyIsDown(s))
+  if(keyIsDown('s'))
     playerSprite.velocity.y = 10;
-  else if(keyIsDown(d))
+  else if(keyIsDown('d'))
     playerSprite.velocity.y = -10;
   else
     playerSprite.velocity.y = 0;
@@ -244,11 +244,11 @@ class InstructionsScreen extends PNGRoom {
   // preload is where we define OUR variables
   preload() {
     // These are out variables in the InstructionsScreen class
-    this.textBoxWidth = (width/6)*4;
-    this.textBoxHeight = (height/6)*4; 
+    //this.textBoxWidth = (width/6)*4;
+    //this.textBoxHeight = (height/6)*4; 
 
     // hard-coded, but this could be loaded from a file if we wanted to be more elegant
-    this.instructionsText = "Find WEIRDY who has a logic problem for you to solve, but first, make it past the CORONAVIRUS room";
+    //this.instructionsText = "Find WEIRDY who has a logic problem for you to solve, but first, make it past the CORONAVIRUS room";
   }
 
   // call the PNGRoom superclass's draw function to draw the background image
