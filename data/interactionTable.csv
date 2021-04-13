@@ -17,10 +17,10 @@ Teen,,,,,E,Old
 Teen,,,,,N,Middle
 Middle,,,,,E,Start
 Middle,,,,,S,Teen
-Middle,,,,,W,Kid
-Kid,,,,,E,Middle
-Kid,,,,,W,Special
-Special,,,,,E,Kid
+Middle,,,,,W,Child
+Child,,,,,E,Middle
+Child,,,,,W,Special
+Special,,,,,E,Child
 Special2,,,,,W,Victory
 Victory,,,,,E,Special2
 Dead,,,,Restart,,Instructions

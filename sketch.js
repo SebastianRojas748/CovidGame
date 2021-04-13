@@ -100,7 +100,7 @@ function draw() {
 
     // draw number of lives
     fill(255);
-    textFont(atariFont);
+    textFont(PixelFont);
     textSize(20)
     textAlign(LEFT);
     text( "Lives: " + numLives, width-350, 50);
@@ -133,16 +133,16 @@ function mouseReleased() {
 
 //-------------- YOUR SPRITE MOVEMENT CODE HERE  ---------------//
 function moveSprite() {
-  if(keyIsDown('w'))
+  if(keyIsDown(RIGHT_ARROW))
     playerSprite.velocity.x = 10;
-  else if(keyIsDown('a'))
+  else if(keyIsDown(LEFT_ARROW))
     playerSprite.velocity.x = -10;
   else
     playerSprite.velocity.x = 0;
 
-  if(keyIsDown('s'))
+  if(keyIsDown(DOWN_ARROW))
     playerSprite.velocity.y = 10;
-  else if(keyIsDown('d'))
+  else if(keyIsDown(UP_ARROW))
     playerSprite.velocity.y = -10;
   else
     playerSprite.velocity.y = 0;
@@ -244,11 +244,11 @@ class InstructionsScreen extends PNGRoom {
   // preload is where we define OUR variables
   preload() {
     // These are out variables in the InstructionsScreen class
-    //this.textBoxWidth = (width/6)*4;
-    //this.textBoxHeight = (height/6)*4; 
+    this.textBoxWidth = (width/6)*4;
+    this.textBoxHeight = (height/6)*4; 
 
     // hard-coded, but this could be loaded from a file if we wanted to be more elegant
-    //this.instructionsText = "Find WEIRDY who has a logic problem for you to solve, but first, make it past the CORONAVIRUS room";
+    this.instructionsText = "";
   }
 
   // call the PNGRoom superclass's draw function to draw the background image
